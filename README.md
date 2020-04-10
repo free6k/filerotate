@@ -1,5 +1,5 @@
 # File Rotate
-A tiny script for rotation big files. by next limits: size,count
+A tiny script for rotation big files. By next limits: size, count
 
 ## Install
 
@@ -22,3 +22,7 @@ A tiny script for rotation big files. by next limits: size,count
 script will find files by `<pattern: /backups/dump_*.sql.gz>` 
 next `if count > 30`, will be delete old files over 30  
 after `summary files size > 100M`, will be delete old files until summary size will be equal 100M
+
+### Cron example
+
+`* * * * * env python /root/filerotate.py -f '/opt/backups/dump_*.sql.gz' -c 30 -s 100M > /dev/null 2>&1`
