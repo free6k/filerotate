@@ -11,7 +11,8 @@ def can_it_run():
     return True
 
 def run(argv):
-  filepattern = count = maxsize = interval = None
+  filepattern = count = maxsize = None
+  interval = []
 
   try:
     opts, args = getopt.getopt(argv,"hf:c:s:i:",["file=","count=","size=","interval="])
@@ -39,8 +40,38 @@ def run(argv):
         maxsize = int(size) * 1024.0 * 1024.0 * 1024.0
        elif maxsize.find('t') != -1:
         maxsize = int(size) * 1024.0 * 1024.0 * 1024.0 * 1024.0
+       else:
+        maxsize = int(size)
+
     elif opt in ("-i", "--interval"):
         interval = arg.lower()
+        interval = arg.split(' ')
+
+        tmp_int = {}
+
+        for i in interval:
+            range, count = i.split(':')
+            range_size = int(re.sub("\D", "", range))
+            count = int(re.sub("\D", "", count))
+
+            if range.find('m') != -1:
+                range = int(range_size) * 60
+            elif range.find('h') != -1:
+                range = int(range_size) * 60 * 60
+            elif range.find('d') != -1:
+                range = int(range_size) * 60 * 60 * 24
+            elif range.find('w') != -1:
+                range = int(range_size) * 60 * 60 * 24 * 7
+            elif range.find('mon') != -1:
+                range = int(range_size) * 60 * 60 * 24 * 7 * 4
+            elif range.find('y') != -1:
+                range = int(range_size) * 60 * 60 * 24 * 7 * 4 * 12
+            else:
+                range = range_size
+
+            tmp_int[range] = count
+
+        interval = sorted(tmp_int)
 
   if not((filepattern and (count or maxsize))):
     print 'One of the parameters must be: -s <maxsize megabytes> or -c <count>'
