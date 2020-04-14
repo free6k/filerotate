@@ -1,2 +1,6 @@
-#JetBrains IDEs
+#IDEs
 .idea
+.vscode
+
+tests
+*.pyc
