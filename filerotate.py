@@ -74,7 +74,8 @@ def run(argv):
                 else:
                     fcount = int(re.sub("\D", "", fcount))
 
-                interval_info = {'range': range, 'count': fcount, 'files': [], 'oldfiles': []}
+                interval_info = {'range': range,
+                                 'count': fcount, 'files': [], 'oldfiles': []}
 
                 if range.find('min') != -1:
                     range = int(range_size) * 60
@@ -137,15 +138,15 @@ def run(argv):
 
                 if total_size > maxsize:
                     realsize = 0
-                    count = 0
+                    countd = 0
 
                     for file in files_with_size:
                         realsize += files_with_size[file]
 
                         if realsize > maxsize:
-                            count += 1
+                            countd += 1
 
-                    oldfiles = files[count:]
+                    oldfiles = files[len(files) - countd:]
 
                     for oldfile in oldfiles:
                         os.unlink(oldfile)
@@ -157,21 +158,27 @@ def run(argv):
                     files = files[:len(files) - len(oldfiles)]
 
             if len(interval) > 0:
-                last_start = None
-
                 for f in files:
                     ftime = os.path.getmtime(f)
+                    last_start = None
 
                     for i in interval.keys():
-                        start = last_start = time.time() - i
+                        start = os.path.getmtime(files[0]) - i
                         end = last_start if last_start else os.path.getmtime(files[0])
 
-                        if start < ftime < end:
+                        #print interval[i]['range'], start, ftime, end, start <= ftime <= end, f
+
+                        if start <= ftime <= end:
                             interval[i]['files'].append(f)
 
-                        if interval[i]['count'] != -1 and len(interval[i]['files']) > interval[i]['count']:
-                            fd = interval[i]['files'].pop(0)
-                            interval[i]['oldfiles'].append()
+                        last_start = start
+
+                for i in interval.keys():
+                    if interval[i]['count'] != -1 and len(interval[i]['files']) > interval[i]['count']:
+                        fd = interval[i]['files'][:len(interval[i]['files']) - interval[i]['count']]
+                        interval[i]['oldfiles'].extend(fd)
+
+                        for fd in interval[i]['oldfiles']:
                             os.unlink(fd)
 
                 for i in interval.keys():
@@ -184,8 +191,6 @@ def run(argv):
 
         else:
             print('Found %d files' % (len(files)))
-
-    #  for file in files:
 
     finally:
         os.unlink(PIDFILE)
