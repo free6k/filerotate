@@ -94,6 +94,15 @@ if __name__ == '__main__':
         f2 = get_files(pattern)
         assert len(f2) == 2, 'Run with interval 1:2 3:2 is wrong work'
 
+        deleteAllFiles(pattern)
+        generate_files(2, 1, 3)
+
+        f = get_files(pattern)
+        runscript(['-f', pattern, '-i', '1:*'])
+        f2 = get_files(pattern)
+        assert len(f2) == 1, 'Run with interval 1:* is delete out of interval files'
+        assert f2[0] == f[0], 'Run with interval 1:* is delete out of interval files'
+
         print 'The tests were successful'
 
     finally:

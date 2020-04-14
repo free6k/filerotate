@@ -158,6 +158,8 @@ def run(argv):
                     files = files[:len(files) - len(oldfiles)]
 
             if len(interval) > 0:
+                files_full_out_of_interval = dict.fromkeys(files)
+
                 for f in files:
                     ftime = os.path.getmtime(f)
                     last_start = None
@@ -171,6 +173,9 @@ def run(argv):
                         if start <= ftime <= end:
                             interval[i]['files'].append(f)
 
+                            if f in files_full_out_of_interval:
+                                del files_full_out_of_interval[f]
+
                         last_start = start
 
                 for i in interval.keys():
@@ -181,6 +186,9 @@ def run(argv):
                         for fd in interval[i]['oldfiles']:
                             os.unlink(fd)
 
+                for fd in files_full_out_of_interval.keys():
+                    os.unlink(fd)
+
                 for i in interval.keys():
                     print('Interval %s: found %d files, limit %d, deleted: %d' % (
                         interval[i]['range'],
@@ -188,6 +196,9 @@ def run(argv):
                         interval[i]['count'],
                         len(interval[i]['oldfiles']),
                     ))
+
+                if len(files_full_out_of_interval) > 0:
+                    print('Deleted by out of intervals: %d' % len(files_full_out_of_interval))
 
         else:
             print('Found %d files' % (len(files)))
