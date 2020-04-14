@@ -13,8 +13,8 @@ A tiny script for rotation big files. By next limits: size, count and intervals
 
 - -f --file - pattern for find files to rotate
 - -c --count - minimal count files, unnecessary will be delete
-- -s --size - max summary size (format: 100K 100M 100G 1T), unnecessary will be delete
-- -i --interval - rotating by intervals, -i '1d:2 1m:2'. seconds (formats: 1m 1h 1d 1w 1d 1mn 1y), integer count.
+- -s --size - max summary size (format: 100K 100M 100G 1T, base unit byte), unnecessary will be delete
+- -i --interval - rotating by intervals, -i '1d:2 1m:2'. seconds (formats: 1min 1h 1d 1w 1d 1m 1y, base unit second), integer count
 
 ## Example
 

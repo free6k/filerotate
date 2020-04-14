@@ -1,153 +1,207 @@
-import sys, os, glob, getopt, time, re, hashlib
+import sys
+import os
+import glob
+import getopt
+import time
+import re
+import hashlib
+import collections
 
 PID = str(os.getpid())
 PIDFILE = "/tmp/FILEROTATE-RUNNING-.pid"
 
+
 def can_it_run():
-  # Check wether lock PIDFILE exists
-  if os.path.isfile(PIDFILE):
-    return False
-  else:
-    return True
+    # Check wether lock PIDFILE exists
+    if os.path.isfile(PIDFILE):
+        return False
+    else:
+        return True
+
 
 def run(argv):
-  filepattern = count = maxsize = None
-  interval = []
+    filepattern = count = maxsize = None
+    interval = {}
 
-  try:
-    opts, args = getopt.getopt(argv,"hf:c:s:i:",["file=","count=","size=","interval="])
-  except getopt.GetoptError:
-    print 'rotate.py -f /test/test*.log -c 10 -s 100M'
-    sys.exit(2)
+    try:
+        opts, args = getopt.getopt(
+            argv, "hf:c:s:i:", ["file=", "count=", "size=", "interval="])
+    except getopt.GetoptError:
+        print('rotate.py -f /test/test*.log -c 10 -s 100M')
+        sys.exit(2)
 
-  for opt, arg in opts:
-    if opt == '-h':
-       print 'rotate.py -f <filepattern> -c <max count: more 0> -s <max summary in 1M 1K 1G 1T>'
-       sys.exit()
-    elif opt in ("-f", "--file"):
-       filepattern = arg
-    elif opt in ("-c", "--count"):
-       count = int(arg)
-    elif opt in ("-s", "--size"):
-       maxsize = arg.lower()
-       size = int(re.sub("\D", "", maxsize));
+    for opt, arg in opts:
+        if opt == '-h':
+            print(
+                'rotate.py -f <filepattern> -c <max count: more 0> -s <max summary in 1M 1K 1G 1T> -i <intervals for file keeping: 1d:* 1m:10>')
+            sys.exit()
+        elif opt in ("-f", "--file"):
+            filepattern = arg
+        elif opt in ("-c", "--count"):
+            count = int(arg)
+        elif opt in ("-s", "--size"):
+            maxsize = arg.lower()
+            size = int(re.sub("\D", "", maxsize))
 
-       if maxsize.find('k') != -1:
-        maxsize = int(size) * 1024.0
-       elif maxsize.find('m') != -1:
-        maxsize = int(size) * 1024.0 * 1024.0
-       elif maxsize.find('g') != -1:
-        maxsize = int(size) * 1024.0 * 1024.0 * 1024.0
-       elif maxsize.find('t') != -1:
-        maxsize = int(size) * 1024.0 * 1024.0 * 1024.0 * 1024.0
-       else:
-        maxsize = int(size)
-
-    elif opt in ("-i", "--interval"):
-        interval = arg.lower()
-        interval = arg.split(' ')
-
-        tmp_int = {}
-
-        for i in interval:
-            range, count = i.split(':')
-            range_size = int(re.sub("\D", "", range))
-            count = int(re.sub("\D", "", count))
-
-            if range.find('m') != -1:
-                range = int(range_size) * 60
-            elif range.find('h') != -1:
-                range = int(range_size) * 60 * 60
-            elif range.find('d') != -1:
-                range = int(range_size) * 60 * 60 * 24
-            elif range.find('w') != -1:
-                range = int(range_size) * 60 * 60 * 24 * 7
-            elif range.find('mon') != -1:
-                range = int(range_size) * 60 * 60 * 24 * 7 * 4
-            elif range.find('y') != -1:
-                range = int(range_size) * 60 * 60 * 24 * 7 * 4 * 12
+            if maxsize.find('k') != -1:
+                maxsize = int(size) * 1024.0
+            elif maxsize.find('m') != -1:
+                maxsize = int(size) * 1024.0 * 1024.0
+            elif maxsize.find('g') != -1:
+                maxsize = int(size) * 1024.0 * 1024.0 * 1024.0
+            elif maxsize.find('t') != -1:
+                maxsize = int(size) * 1024.0 * 1024.0 * 1024.0 * 1024.0
             else:
-                range = range_size
+                maxsize = int(size)
 
-            tmp_int[range] = count
+        elif opt in ("-i", "--interval"):
+            interval = arg.lower()
+            interval = arg.split(' ')
 
-        interval = sorted(tmp_int)
+            tmp_int = {}
 
-  if not((filepattern and (count or maxsize))):
-    print 'One of the parameters must be: -s <maxsize megabytes> or -c <count>'
-    sys.exit(2)
+            for i in interval:
+                split = i.split(':')
 
-  if not(count):
-    count = 0
+                if len(split) < 2 or (not split[0] or not split[1]):
+                    continue
 
-  open(PIDFILE, 'w').write(PID);
+                range, fcount = split
+                range_size = int(re.sub("\D", "", range))
 
-  try:
-    files = glob.glob(filepattern)
-    files.sort(key=os.path.getmtime, reverse = True)
+                if fcount == '*':
+                    fcount = -1
+                else:
+                    fcount = int(re.sub("\D", "", fcount))
 
-    if count > 0:
-      print 'Found %d files, last %s' % (len(files), time.strftime('%b %d %Y %H:%M:%S', time.localtime(os.path.getmtime(files[0]))))
+                interval_info = {'range': range, 'count': fcount, 'files': [], 'oldfiles': []}
 
-      oldfiles = files[count:]
+                if range.find('min') != -1:
+                    range = int(range_size) * 60
+                elif range.find('h') != -1:
+                    range = int(range_size) * 60 * 60
+                elif range.find('d') != -1:
+                    range = int(range_size) * 60 * 60 * 24
+                elif range.find('w') != -1:
+                    range = int(range_size) * 60 * 60 * 24 * 7
+                elif range.find('m') != -1:
+                    range = int(range_size) * 60 * 60 * 24 * 7 * 4
+                elif range.find('y') != -1:
+                    range = int(range_size) * 60 * 60 * 24 * 7 * 4 * 12
+                else:
+                    range = range_size
 
-      for oldfile in oldfiles:
-        os.unlink(oldfile)
+                tmp_int[range] = interval_info
 
-      if oldfiles:
-        print 'Deleted %d files by count limit' % len(oldfiles)
+            interval = collections.OrderedDict(sorted(tmp_int.items()))
 
-      files = files[:len(files) - len(oldfiles)]
+    if not((filepattern and (count or maxsize or len(interval) > 0))):
+        print('One of the parameters must be: -s <maxsize megabytes> or -c <count> or -i <interval>')
+        sys.exit(2)
 
-    if maxsize > 0:
-      total_size = 0
-      files_with_size = {}
-
-      for file in files:
-        files_with_size[file] = os.path.getsize(file)
-        total_size += files_with_size[file]
-
-      print 'Total size %s limit %s' % (sizeof_fmt(total_size), sizeof_fmt(maxsize))
-
-      if total_size > maxsize:
-        realsize = 0
+    if not(count):
         count = 0
 
-        for file in files_with_size:
-          realsize += files_with_size[file]
+    open(PIDFILE, 'w').write(PID)
 
-          if realsize > maxsize:
-            count += 1
+    try:
+        files = glob.glob(filepattern)
+        files.sort(key=os.path.getmtime, reverse=True)
 
-        oldfiles = files[count:]
+        if len(files) > 0:
 
-        for oldfile in oldfiles:
-          os.unlink(oldfile)
+            if count > 0:
+                print('Found %d files, last %s' % (len(files), time.strftime(
+                    '%b %d %Y %H:%M:%S', time.localtime(os.path.getmtime(files[0])))))
 
-        if oldfiles:
-          print 'Deleted %d files by maxsize limit' % len(oldfiles)
+                oldfiles = files[count:]
 
-        files = files[:len(files) - len(oldfiles)]
+                for oldfile in oldfiles:
+                    os.unlink(oldfile)
 
-    else:
-      print 'Found %d files' % (len(files))
+                if oldfiles:
+                    print('Deleted %d files by count limit' % len(oldfiles))
 
+                files = files[:len(files) - len(oldfiles)]
 
-  #  for file in files:
+            if maxsize > 0:
+                total_size = 0
+                files_with_size = {}
 
-  finally:
-    os.unlink(PIDFILE)
+                for file in files:
+                    files_with_size[file] = os.path.getsize(file)
+                    total_size += files_with_size[file]
+
+                print('Total size %s limit %s' %
+                      (sizeof_fmt(total_size), sizeof_fmt(maxsize)))
+
+                if total_size > maxsize:
+                    realsize = 0
+                    count = 0
+
+                    for file in files_with_size:
+                        realsize += files_with_size[file]
+
+                        if realsize > maxsize:
+                            count += 1
+
+                    oldfiles = files[count:]
+
+                    for oldfile in oldfiles:
+                        os.unlink(oldfile)
+
+                    if oldfiles:
+                        print('Deleted %d files by maxsize limit' %
+                              len(oldfiles))
+
+                    files = files[:len(files) - len(oldfiles)]
+
+            if len(interval) > 0:
+                last_start = None
+
+                for f in files:
+                    ftime = os.path.getmtime(f)
+
+                    for i in interval.keys():
+                        start = last_start = time.time() - i
+                        end = last_start if last_start else os.path.getmtime(files[0])
+
+                        if start < ftime < end:
+                            interval[i]['files'].append(f)
+
+                        if interval[i]['count'] != -1 and len(interval[i]['files']) > interval[i]['count']:
+                            fd = interval[i]['files'].pop(0)
+                            interval[i]['oldfiles'].append()
+                            os.unlink(fd)
+
+                for i in interval.keys():
+                    print('Interval %s: found %d files, limit %d, deleted: %d' % (
+                        interval[i]['range'],
+                        len(interval[i]['files']),
+                        interval[i]['count'],
+                        len(interval[i]['oldfiles']),
+                    ))
+
+        else:
+            print('Found %d files' % (len(files)))
+
+    #  for file in files:
+
+    finally:
+        os.unlink(PIDFILE)
+
 
 def sizeof_fmt(num, suffix='B'):
-  for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
-      if abs(num) < 1024.0:
-          return "%3.1f%s%s" % (num, unit, suffix)
-      num /= 1024.0
-  return "%.1f%s%s" % (num, 'Yi', suffix)
+    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
+
 
 if __name__ == '__main__':
-  if can_it_run():
-    run(sys.argv[1:]);
-  else:
-    old_pid = ''.join(file("RUNNING.pid"))
-    print "Script already running under PID %s, skipping execution." % old_pid
+    if can_it_run():
+        run(sys.argv[1:])
+    else:
+        old_pid = ''.join(file("RUNNING.pid"))
+        print("Script already running under PID %s, skipping execution." % old_pid)
