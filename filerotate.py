@@ -219,5 +219,5 @@ if __name__ == '__main__':
     if can_it_run():
         run(sys.argv[1:])
     else:
-        old_pid = ''.join(file("RUNNING.pid"))
+        old_pid = ''.join(file(PIDFILE))
         print("Script already running under PID %s, skipping execution." % old_pid)
