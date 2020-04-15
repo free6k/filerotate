@@ -173,12 +173,13 @@ def run(argv):
                     last_start = None
 
                     for i in interval.keys():
-                        start = os.path.getmtime(files[0]) - interval[i]['rangetime']
+                        start = (last_start if last_start else os.path.getmtime(files[0])) - interval[i]['rangetime']
                         end = last_start if last_start else os.path.getmtime(files[0])
 
                         #print interval[i]['range'], start, ftime, end, start <= ftime <= end, f
+                        #print (interval[i]['range'], time.strftime('%b %d %Y %H:%M:%S', time.localtime(start)), time.strftime('%b %d %Y %H:%M:%S', time.localtime(ftime)), time.strftime('%b %d %Y %H:%M:%S', time.localtime(end)))
 
-                        if start <= ftime <= end:
+                        if start < ftime <= end:
                             interval[i]['files'].append(f)
 
                             if f in files_full_out_of_interval:
