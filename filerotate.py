@@ -59,6 +59,7 @@ def run(argv):
             interval = arg.split(' ')
 
             tmp_int = {}
+            total_range = None
 
             for i in interval:
                 split = i.split(':')
@@ -94,10 +95,12 @@ def run(argv):
 
                 interval_info['rangetime'] = range
 
-                if range in tmp_int:
-                    tmp_int[range + range] = interval_info
+                total_range = range if not total_range else total_range + range
+
+                if total_range in tmp_int:
+                    tmp_int[total_range] = interval_info
                 else:
-                    tmp_int[range] = interval_info
+                    tmp_int[total_range] = interval_info
 
             interval = collections.OrderedDict(sorted(tmp_int.items()))
 
