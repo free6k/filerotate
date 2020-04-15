@@ -92,7 +92,12 @@ def run(argv):
                 else:
                     range = range_size
 
-                tmp_int[range] = interval_info
+                interval_info['rangetime'] = range
+
+                if range in tmp_int:
+                    tmp_int[range + range] = interval_info
+                else:
+                    tmp_int[range] = interval_info
 
             interval = collections.OrderedDict(sorted(tmp_int.items()))
 
@@ -165,7 +170,7 @@ def run(argv):
                     last_start = None
 
                     for i in interval.keys():
-                        start = os.path.getmtime(files[0]) - i
+                        start = os.path.getmtime(files[0]) - interval[i]['rangetime']
                         end = last_start if last_start else os.path.getmtime(files[0])
 
                         #print interval[i]['range'], start, ftime, end, start <= ftime <= end, f
