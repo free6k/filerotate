@@ -6,20 +6,20 @@ import time
 import re
 import hashlib
 import collections
+import hashlib
 
-PID = str(os.getpid())
-PIDFILE = "/tmp/FILEROTATE-RUNNING-.pid"
-
-
-def can_it_run():
+def can_it_run(pidfile):
     # Check wether lock PIDFILE exists
-    if os.path.isfile(PIDFILE):
+    if os.path.isfile(pidfile):
         return False
     else:
         return True
 
 
 def run(argv):
+    PID = str(os.getpid())
+    PIDFILE = "/tmp/FILEROTATE-RUNNING-%s.pid"
+
     filepattern = count = maxsize = None
     interval = {}
 
@@ -37,6 +37,7 @@ def run(argv):
             sys.exit()
         elif opt in ("-f", "--file"):
             filepattern = arg
+            PIDFILE = PIDFILE % hashlib.md5(filepattern).hexdigest()
         elif opt in ("-c", "--count"):
             count = int(arg)
         elif opt in ("-s", "--size"):
@@ -105,7 +106,12 @@ def run(argv):
             interval = collections.OrderedDict(sorted(tmp_int.items()))
 
     if not((filepattern and (count or maxsize or len(interval) > 0))):
-        print('One of the parameters must be: -s <maxsize megabytes> or -c <count> or -i <interval>')
+        print('Filepattern is required and one of the parameters must be: -s <maxsize megabytes> or -c <count> or -i <interval>')
+        sys.exit(2)
+
+    if not can_it_run(PIDFILE):
+        old_pid = ''.join(file(PIDFILE))
+        print("Script already running under PID %s, skipping execution." % old_pid)
         sys.exit(2)
 
     if not(count):
@@ -225,8 +231,4 @@ def sizeof_fmt(num, suffix='B'):
 
 
 if __name__ == '__main__':
-    if can_it_run():
-        run(sys.argv[1:])
-    else:
-        old_pid = ''.join(file(PIDFILE))
-        print("Script already running under PID %s, skipping execution." % old_pid)
+    run(sys.argv[1:])
